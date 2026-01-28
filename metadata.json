@@ -1,0 +1,7 @@
+{
+  "name": "VisionStage AI",
+  "description": "Hyper-realistic virtual staging for real estate professionals. Transform empty or cluttered rooms into stunning, professionally staged spaces in seconds using advanced AI.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
