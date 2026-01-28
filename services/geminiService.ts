@@ -6,8 +6,14 @@ export const stageRoom = async (
   prompt: string,
   mimeType: string = "image/jpeg"
 ): Promise<string> => {
-  // Always initialize GoogleGenAI with process.env.API_KEY directly inside the call
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+  // Defensive check for the API key to prevent a blank screen/crash
+  const apiKey = typeof process !== 'undefined' ? process.env.API_KEY : null;
+  
+  if (!apiKey) {
+    throw new Error("API_KEY is missing. Please configure it in your environment variables.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey: apiKey as string });
 
   try {
     const response = await ai.models.generateContent({
@@ -16,7 +22,7 @@ export const stageRoom = async (
         parts: [
           {
             inlineData: {
-              data: base64Image.split(',')[1], // Remove data:image/...;base64 prefix
+              data: base64Image.split(',')[1],
               mimeType: mimeType,
             },
           },
@@ -34,7 +40,6 @@ Strict Requirements:
       },
     });
 
-    // Iterate through candidates and parts to find the generated image data
     for (const candidate of response.candidates || []) {
       for (const part of candidate.content?.parts || []) {
         if (part.inlineData) {

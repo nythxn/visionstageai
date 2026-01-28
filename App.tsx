@@ -23,6 +23,7 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : [];
   });
   const [currentListingId, setCurrentListingId] = useState<string | null>(null);
+  const [globalError, setGlobalError] = useState<string | null>(null);
 
   // Custom Styles Persistence
   const [userStyles, setUserStyles] = useState<StagingStyle[]>(() => {
@@ -64,6 +65,14 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('visionstage_custom_styles', JSON.stringify(userStyles));
   }, [userStyles]);
+
+  // Check for API Key on mount to warn the user instead of showing a white screen
+  useEffect(() => {
+    const apiKey = typeof process !== 'undefined' ? process.env.API_KEY : null;
+    if (!apiKey) {
+      setGlobalError("Missing API_KEY. Please set the 'API_KEY' environment variable in your Vercel project settings.");
+    }
+  }, []);
 
   const handleCreateListing = () => {
     if (!newListingName.trim()) return;
@@ -120,6 +129,7 @@ const App: React.FC = () => {
     if (pendingImages.length === 0 || !activeListing) return;
 
     setIsBulkProcessing(true);
+    setGlobalError(null);
 
     const masterStyle = allStyles.find(s => s.id === activeListing.targetStyleId) || STAGING_STYLES[0];
     
@@ -130,7 +140,6 @@ const App: React.FC = () => {
       const itemStyleId = item.styleId || activeListing.targetStyleId;
       const itemStyle = allStyles.find(s => s.id === itemStyleId) || masterStyle;
 
-      // Consistency reinforcement prompt
       const consistencyInstruction = `Maintain strict visual consistency with the '${masterStyle.name}' aesthetic used throughout the rest of this property listing at ${activeListing.address}. Ensure lighting and materials match the established theme.`;
 
       const finalPrompt = isCustomMode && customPrompt.trim() 
@@ -155,11 +164,12 @@ const App: React.FC = () => {
         ));
       } catch (err: any) {
         console.error(`Failed to stage image ${i}:`, err);
+        setGlobalError(`Error staging ${item.label}. Please check your API usage or key.`);
       }
     }
 
-    setPendingImages([]);
     setIsBulkProcessing(false);
+    setPendingImages([]);
     setCurrentProcessingIndex(-1);
     
     setTimeout(() => {
@@ -183,9 +193,36 @@ const App: React.FC = () => {
     document.body.removeChild(link);
   };
 
+  if (globalError && !activeListing && listings.length === 0) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-[60vh] px-4">
+          <div className="bg-white p-12 rounded-[3rem] shadow-2xl border border-red-100 max-w-lg text-center">
+            <div className="text-5xl mb-6">⚠️</div>
+            <h2 className="text-2xl font-black text-gray-900 mb-4 tracking-tight">System Configuration Error</h2>
+            <p className="text-gray-500 font-medium leading-relaxed mb-8">{globalError}</p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-xs"
+            >
+              Retry Connection
+            </button>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Error Banner */}
+        {globalError && (
+          <div className="mb-8 bg-red-50 border border-red-100 p-4 rounded-2xl flex items-center justify-between">
+            <p className="text-red-700 text-sm font-bold">Error: {globalError}</p>
+            <button onClick={() => setGlobalError(null)} className="text-red-400 hover:text-red-600">✕</button>
+          </div>
+        )}
         
         {/* DASHBOARD VIEW */}
         {view === 'dashboard' && (
